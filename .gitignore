@@ -1,0 +1,16 @@
+data/
+output/
+graphs/
+*.pyc
+__pycache__/
+.env
+*.log
+build/
+*.bin
+*.aux
+*.log
+*.out
+*.toc
+.DS_Store
+task/
+example/

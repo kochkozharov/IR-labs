@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  scraper:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    container_name: linguistics_scraper
+    volumes:
+      - ./scraper/config.yaml:/app/config.yaml
+      - ./data:/app/data
+    networks:
+      - search_net
+
+  engine:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    container_name: linguistics_engine
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./data:/app/data
+    networks:
+      - search_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: linguistics_frontend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - engine
+    environment:
+      - ENGINE_URL=http://engine:9090
+    networks:
+      - search_net
+
+networks:
+  search_net:
+    driver: bridge

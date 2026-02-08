@@ -1,0 +1,45 @@
+scraper:
+  start_urls:
+    - "https://ru.wikipedia.org/wiki/Категория:Лингвистика"
+    - "https://ru.wikipedia.org/wiki/Категория:Языки"
+    - "https://ru.wikipedia.org/wiki/Категория:Языкознание"
+    - "https://ru.wikipedia.org/wiki/Категория:Фонетика"
+    - "https://ru.wikipedia.org/wiki/Категория:Морфология_(лингвистика)"
+    - "https://ru.wikipedia.org/wiki/Категория:Синтаксис"
+    - "https://ru.wikipedia.org/wiki/Категория:Семантика"
+    - "https://ru.wikipedia.org/wiki/Категория:Лексикология"
+    - "https://ru.wikipedia.org/wiki/Категория:Грамматика"
+    - "https://ru.wikipedia.org/wiki/Категория:Прикладная_лингвистика"
+  
+  max_documents: 35000
+  max_depth: 4
+  concurrent_requests: 10
+  request_delay_ms: 100
+  timeout_seconds: 30
+  user_agent: "LinguisticsSearchBot/1.0"
+  
+  min_text_length: 1500
+  min_paragraphs: 3
+  
+  excluded_patterns:
+    - "Special:"
+    - "Служебная:"
+    - "File:"
+    - "Файл:"
+    - "Category:"
+    - "Категория:"
+    - "Template:"
+    - "Шаблон:"
+    - "Help:"
+    - "Справка:"
+    - "Talk:"
+    - "Обсуждение:"
+    - "User:"
+    - "Участник:"
+    - "Wikipedia:"
+    - "Википедия:"
+    - "Portal:"
+    - "Портал:"
+
+output:
+  file: "/app/data/corpus.ndjson"
