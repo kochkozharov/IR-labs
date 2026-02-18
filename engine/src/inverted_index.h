@@ -37,6 +37,13 @@ public:
     size_t vocabulary_size() const;
     size_t document_count() const;
     
+    const std::vector<std::string>& documents() const { return documents_; }
+
+    void clear() { index_.clear(); documents_.clear(); }
+    void reserve_vocabulary(size_t n) { index_.reserve(n); }
+    void add_document_name(const std::string& name) { documents_.push_back(name); }
+    void insert_posting_list(const std::string& term, const PostingList& pl) { index_.insert(term, pl); }
+
     template<typename Func>
     void for_each_term(Func func) const {
         index_.for_each(func);

@@ -184,6 +184,33 @@ public:
 
     size_t size() const { return size_; }
 
+    void clear() {
+        for (size_t i = 0; i < capacity_; ++i) {
+            if (buckets_[i].key) { delete[] buckets_[i].key; buckets_[i].key = nullptr; }
+            buckets_[i].occupied = false;
+            buckets_[i].deleted = false;
+        }
+        size_ = 0;
+    }
+
+    void reserve(size_t n) {
+        size_t needed = static_cast<size_t>(n / LOAD_FACTOR) + 1;
+        size_t p = 1;
+        while (p < needed) p *= 2;
+        if (p <= capacity_) return;
+        size_t old_capacity = capacity_;
+        Entry* old_buckets = buckets_;
+        capacity_ = p;
+        buckets_ = new Entry[capacity_];
+        size_ = 0;
+        for (size_t i = 0; i < old_capacity; ++i) {
+            if (old_buckets[i].occupied && !old_buckets[i].deleted) {
+                insert(old_buckets[i].key, old_buckets[i].key_len, old_buckets[i].value);
+            }
+        }
+        delete[] old_buckets;
+    }
+
     template<typename Func>
     void for_each(Func func) const {
         for (size_t i = 0; i < capacity_; ++i) {

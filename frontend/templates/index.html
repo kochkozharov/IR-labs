@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Engine</title>
+    <title>Поисковая система</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -48,7 +48,7 @@
         .nav-tab:hover { background: rgba(255,255,255,0.25); }
         .nav-tab.active { background: rgba(255,255,255,0.35); font-weight: 600; }
         
-        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         
         .page { display: none; }
         .page.active { display: block; }
@@ -89,7 +89,7 @@
         .search-btn:hover { transform: translateY(-1px); }
         
         .help-text { margin-top: 10px; font-size: 12px; color: #888; }
-        .help-text code { background: #f5f5f5; padding: 2px 5px; border-radius: 3px; }
+        .help-text code { background: #f5f5f5; padding: 2px 5px; border-radius: 3px; font-size: 12px; }
         
         .results-box {
             background: white;
@@ -191,15 +191,24 @@
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
         
-        .chart-card h3 { font-size: 14px; color: #444; margin-bottom: 10px; }
+        .chart-card h3 { font-size: 15px; color: #444; margin-bottom: 12px; }
         
-        .chart-card.full-width { grid-column: 1 / -1; }
+        .chart-card canvas {
+            min-height: 400px;
+        }
+        
+        .chart-card.full-width {
+            grid-column: 1 / -1;
+        }
+        .chart-card.full-width canvas {
+            min-height: 500px;
+        }
         
         .loading { text-align: center; padding: 40px; color: #999; }
         .no-results { text-align: center; padding: 40px; color: #999; }
         .error { color: #e74c3c; text-align: center; padding: 20px; }
         
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
             .charts-grid { grid-template-columns: 1fr; }
             .search-form { flex-direction: column; }
             .navbar { flex-direction: column; gap: 10px; }
@@ -208,11 +217,11 @@
 </head>
 <body>
     <div class="navbar">
-        <h1>Search Engine</h1>
+        <h1>Поисковая система</h1>
         <div class="nav-tabs">
-            <button class="nav-tab active" onclick="showPage('search')">Search</button>
-            <button class="nav-tab" onclick="showPage('zipf')">Zipf Analysis</button>
-            <button class="nav-tab" onclick="showPage('stats')">Statistics</button>
+            <button class="nav-tab active" onclick="showPage('search')">Поиск</button>
+            <button class="nav-tab" onclick="showPage('zipf')">Анализ Ципфа</button>
+            <button class="nav-tab" onclick="showPage('stats')">Статистика</button>
         </div>
     </div>
     
@@ -221,14 +230,15 @@
             <div class="search-box">
                 <form class="search-form" id="searchForm">
                     <input type="text" class="search-input" id="searchInput"
-                           placeholder="Enter search query...">
-                    <button type="submit" class="search-btn">Search</button>
+                           placeholder="Введите поисковый запрос...">
+                    <button type="submit" class="search-btn">Найти</button>
                 </form>
                 <p class="help-text">
-                    Boolean operators: <code>AND</code> <code>OR</code> <code>NOT</code> |
-                    Example: <code>syntax AND morphology</code>,
-                    <code>phonetics OR phonology</code>,
-                    <code>grammar NOT english</code>
+                    Операторы: <code>&&</code> (И), <code>||</code> (ИЛИ), <code>!</code> (НЕ), <code>( )</code> (группировка) &middot;
+                    Примеры: <code>синтаксис && морфология</code>,
+                    <code>фонетика || фонология</code>,
+                    <code>грамматика && !английский</code>,
+                    <code>(проза || поэзия) && автор</code>
                 </p>
             </div>
             
@@ -245,19 +255,19 @@
         <div id="page-zipf" class="page">
             <div class="charts-grid" id="chartsGrid">
                 <div class="chart-card">
-                    <h3>Zipf Law: Linear Scale (Top 1000)</h3>
+                    <h3>Закон Ципфа: линейная шкала (топ 1000)</h3>
                     <canvas id="chartLinear"></canvas>
                 </div>
                 <div class="chart-card">
-                    <h3>Zipf Law: Log-Log Scale</h3>
+                    <h3>Закон Ципфа: логарифмическая шкала</h3>
                     <canvas id="chartLogLog"></canvas>
                 </div>
                 <div class="chart-card">
-                    <h3>Linear Regression (log-log)</h3>
+                    <h3>Линейная регрессия (log-log)</h3>
                     <canvas id="chartRegression"></canvas>
                 </div>
-                <div class="chart-card">
-                    <h3>Top 30 Most Frequent Terms</h3>
+                <div class="chart-card full-width">
+                    <h3>Топ-30 наиболее частых терминов</h3>
                     <canvas id="chartTop30"></canvas>
                 </div>
             </div>
@@ -265,7 +275,7 @@
         
         <div id="page-stats" class="page">
             <div class="stats-grid" id="statsGrid">
-                <div class="loading">Loading statistics...</div>
+                <div class="loading">Загрузка статистики...</div>
             </div>
         </div>
     </div>
@@ -297,7 +307,7 @@
             const box = document.getElementById('resultsBox');
             const list = document.getElementById('resultsList');
             box.style.display = 'block';
-            list.innerHTML = '<div class="loading">Searching...</div>';
+            list.innerHTML = '<div class="loading">Поиск...</div>';
             
             const t0 = performance.now();
             
@@ -305,17 +315,20 @@
                 .then(r => r.json())
                 .then(data => {
                     const elapsed = ((performance.now() - t0) / 1000).toFixed(3);
-                    document.getElementById('searchTime').textContent = `${elapsed}s`;
+                    document.getElementById('searchTime').textContent = `${elapsed} с`;
                     displayResults(data);
                 })
                 .catch(err => {
-                    list.innerHTML = `<div class="error">Engine unavailable: ${err.message}</div>`;
+                    list.innerHTML = `<div class="error">Движок недоступен: ${err.message}</div>`;
                 });
         }
         
         function highlightSnippet(text, query) {
-            const words = query.toLowerCase().split(/\s+/)
-                .filter(w => !['and','or','not'].includes(w));
+            const words = query.toLowerCase()
+                .replace(/&&/g,' ').replace(/\|\|/g,' ').replace(/!/g,' ')
+                .replace(/\(/g,' ').replace(/\)/g,' ')
+                .split(/\s+/)
+                .filter(w => !['and','or','not','и','или','не',''].includes(w));
             let result = text;
             words.forEach(w => {
                 if (w.length > 1) {
@@ -328,10 +341,10 @@
         
         function displayResults(data) {
             const list = document.getElementById('resultsList');
-            document.getElementById('resultsCount').textContent = `Found: ${data.total} results`;
+            document.getElementById('resultsCount').textContent = `Найдено: ${data.total} результатов`;
             
             if (!data.results || data.results.length === 0) {
-                list.innerHTML = '<div class="no-results">No results found</div>';
+                list.innerHTML = '<div class="no-results">Ничего не найдено</div>';
                 document.getElementById('pagination').innerHTML = '';
                 return;
             }
@@ -339,11 +352,12 @@
             let html = '';
             data.results.forEach(r => {
                 const snippet = highlightSnippet(r.snippet || '', currentQuery);
+                const scoreDisplay = typeof r.score === 'number' ? r.score.toFixed(2) : r.score;
                 html += `<div class="result-item">
-                    <a href="${r.url}" target="_blank" class="result-title">${r.title || 'Untitled'}</a>
+                    <a href="${r.url}" target="_blank" class="result-title">${r.title || 'Без заголовка'}</a>
                     <div class="result-url">${r.url}</div>
                     <div class="result-snippet">${snippet}</div>
-                    <span class="result-score">TF score: ${r.score}</span>
+                    <span class="result-score">TF-IDF: ${scoreDisplay}</span>
                 </div>`;
             });
             list.innerHTML = html;
@@ -352,13 +366,13 @@
             if (data.pages > 1) {
                 let phtml = '';
                 if (currentPage > 1)
-                    phtml += `<button class="page-btn" onclick="goPage(${currentPage-1})">Prev</button>`;
+                    phtml += `<button class="page-btn" onclick="goPage(${currentPage-1})">Назад</button>`;
                 const s = Math.max(1, currentPage - 3);
                 const e = Math.min(data.pages, currentPage + 3);
                 for (let i = s; i <= e; i++)
                     phtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
                 if (currentPage < data.pages)
-                    phtml += `<button class="page-btn" onclick="goPage(${currentPage+1})">Next</button>`;
+                    phtml += `<button class="page-btn" onclick="goPage(${currentPage+1})">Вперёд</button>`;
                 pg.innerHTML = phtml;
             } else {
                 pg.innerHTML = '';
@@ -375,45 +389,63 @@
                     grid.innerHTML = `
                         <div class="stat-card">
                             <div class="stat-value">${(data.documents || 0).toLocaleString()}</div>
-                            <div class="stat-label">Documents Indexed</div>
+                            <div class="stat-label">Документов проиндексировано</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-value">${(data.vocabulary || 0).toLocaleString()}</div>
-                            <div class="stat-label">Vocabulary Size</div>
+                            <div class="stat-label">Размер словаря</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-value">${(data.total_terms || 0).toLocaleString()}</div>
-                            <div class="stat-label">Total Terms</div>
+                            <div class="stat-label">Всего терминов</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-value">${(data.unique_terms || 0).toLocaleString()}</div>
-                            <div class="stat-label">Unique Terms</div>
+                            <div class="stat-label">Уникальных терминов</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value">${(data.index_time || 0).toFixed(1)}s</div>
-                            <div class="stat-label">Index Build Time</div>
+                            <div class="stat-value">${(data.index_time || 0).toFixed(1)} с</div>
+                            <div class="stat-label">Время построения индекса</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value">${data.status || 'unknown'}</div>
-                            <div class="stat-label">Engine Status</div>
+                            <div class="stat-value">${data.status === 'ready' ? 'готов' : (data.status || 'неизвестно')}</div>
+                            <div class="stat-label">Статус движка</div>
                         </div>`;
                 })
                 .catch(err => {
                     document.getElementById('statsGrid').innerHTML =
-                        `<div class="error">Cannot connect to engine: ${err.message}</div>`;
+                        `<div class="error">Не удалось подключиться к движку: ${err.message}</div>`;
                 });
         }
         
         function loadZipf() {
+            document.getElementById('chartsGrid').innerHTML = '<div class="loading">Загрузка данных Ципфа...</div>';
             fetch('/api/zipf?limit=5000')
                 .then(r => r.json())
                 .then(data => {
                     zipfLoaded = true;
+                    document.getElementById('chartsGrid').innerHTML = `
+                        <div class="chart-card">
+                            <h3>Закон Ципфа: линейная шкала (топ 1000)</h3>
+                            <canvas id="chartLinear"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Закон Ципфа: логарифмическая шкала</h3>
+                            <canvas id="chartLogLog"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Линейная регрессия (log-log)</h3>
+                            <canvas id="chartRegression"></canvas>
+                        </div>
+                        <div class="chart-card full-width">
+                            <h3>Топ-30 наиболее частых терминов</h3>
+                            <canvas id="chartTop30"></canvas>
+                        </div>`;
                     renderZipfCharts(data);
                 })
                 .catch(err => {
                     document.getElementById('chartsGrid').innerHTML =
-                        `<div class="error">Cannot load Zipf data: ${err.message}</div>`;
+                        `<div class="error">Не удалось загрузить данные Ципфа: ${err.message}</div>`;
                 });
         }
         
@@ -426,39 +458,38 @@
             const freqs1k = top1000.map(x => x.frequency);
             const zipf1k = top1000.map(x => x.zipf_prediction);
             
-            if (zipfCharts.linear) zipfCharts.linear.destroy();
             zipfCharts.linear = new Chart(document.getElementById('chartLinear'), {
                 type: 'line',
                 data: {
                     labels: ranks1k,
                     datasets: [
-                        { label: 'Actual', data: freqs1k, borderColor: '#2E86AB', borderWidth: 1.5, pointRadius: 0, fill: false },
-                        { label: 'Zipf', data: zipf1k, borderColor: '#E94F37', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, fill: false }
+                        { label: 'Реальные данные', data: freqs1k, borderColor: '#2E86AB', borderWidth: 1.5, pointRadius: 0, fill: false },
+                        { label: 'Закон Ципфа', data: zipf1k, borderColor: '#E94F37', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, fill: false }
                     ]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
-                        x: { title: { display: true, text: 'Rank' }, ticks: { maxTicksLimit: 10 } },
-                        y: { title: { display: true, text: 'Frequency' } }
+                        x: { title: { display: true, text: 'Ранг' }, ticks: { maxTicksLimit: 10 } },
+                        y: { title: { display: true, text: 'Частота' } }
                     }
                 }
             });
             
             const top3000 = d.slice(0, 3000);
-            if (zipfCharts.loglog) zipfCharts.loglog.destroy();
             zipfCharts.loglog = new Chart(document.getElementById('chartLogLog'), {
                 type: 'scatter',
                 data: {
                     datasets: [
                         {
-                            label: 'Actual',
+                            label: 'Реальные данные',
                             data: top3000.map(x => ({x: x.log_rank, y: x.log_frequency})),
                             backgroundColor: 'rgba(46,134,171,0.3)',
                             pointRadius: 1.5
                         },
                         {
-                            label: 'Zipf Law',
+                            label: 'Закон Ципфа',
                             data: top3000.map(x => ({x: x.log_rank, y: Math.log10(x.zipf_prediction)})),
                             type: 'line',
                             borderColor: '#E94F37',
@@ -470,9 +501,10 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
-                        x: { title: { display: true, text: 'log10(Rank)' } },
-                        y: { title: { display: true, text: 'log10(Frequency)' } }
+                        x: { title: { display: true, text: 'log₁₀(Ранг)' } },
+                        y: { title: { display: true, text: 'log₁₀(Частота)' } }
                     }
                 }
             });
@@ -493,19 +525,18 @@
             const fitX = [xvals[0], xvals[xvals.length-1]];
             const fitY = fitX.map(x => slope*x + intercept);
             
-            if (zipfCharts.regression) zipfCharts.regression.destroy();
             zipfCharts.regression = new Chart(document.getElementById('chartRegression'), {
                 type: 'scatter',
                 data: {
                     datasets: [
                         {
-                            label: 'Observed',
+                            label: 'Наблюдаемые',
                             data: d.slice(0,2000).map(x => ({x: x.log_rank, y: x.log_frequency})),
                             backgroundColor: 'rgba(46,134,171,0.3)',
                             pointRadius: 1.5
                         },
                         {
-                            label: `Fit: slope=${slope.toFixed(3)}`,
+                            label: `Аппроксимация: наклон=${slope.toFixed(3)}`,
                             data: fitX.map((x,i) => ({x: x, y: fitY[i]})),
                             type: 'line',
                             borderColor: '#E94F37',
@@ -517,21 +548,21 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
-                        x: { title: { display: true, text: 'log10(Rank)' } },
-                        y: { title: { display: true, text: 'log10(Frequency)' } }
+                        x: { title: { display: true, text: 'log₁₀(Ранг)' } },
+                        y: { title: { display: true, text: 'log₁₀(Частота)' } }
                     }
                 }
             });
             
             const top30 = d.slice(0, 30);
-            if (zipfCharts.top30) zipfCharts.top30.destroy();
             zipfCharts.top30 = new Chart(document.getElementById('chartTop30'), {
                 type: 'bar',
                 data: {
                     labels: top30.map(x => x.term),
                     datasets: [{
-                        label: 'Frequency',
+                        label: 'Частота',
                         data: top30.map(x => x.frequency),
                         backgroundColor: top30.map((_, i) =>
                             `hsl(${220 + i*4}, 60%, ${45 + i}%)`)
@@ -540,8 +571,9 @@
                 options: {
                     indexAxis: 'y',
                     responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
-                        x: { title: { display: true, text: 'Frequency' } }
+                        x: { title: { display: true, text: 'Частота' } }
                     },
                     plugins: { legend: { display: false } }
                 }

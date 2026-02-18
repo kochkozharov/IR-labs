@@ -29,6 +29,16 @@ public:
     
     size_t unique_terms() const;
     size_t total_terms() const;
+
+    void clear() { term_counts_.clear(); total_terms_ = 0; }
+    void set_total_terms(size_t n) { total_terms_ = n; }
+    void insert_term_count(const std::string& term, size_t count) { term_counts_.insert(term, count); }
+    void reserve(size_t n) { term_counts_.reserve(n); }
+
+    template<typename Func>
+    void for_each_term_count(Func func) const {
+        term_counts_.for_each(func);
+    }
 };
 
 #endif

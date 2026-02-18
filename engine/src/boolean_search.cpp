@@ -1,193 +1,283 @@
 #include "boolean_search.h"
+#include <cmath>
 
-BooleanSearch::BooleanSearch(const InvertedIndex& index) : index_(index) {}
+BooleanSearch::BooleanSearch(const InvertedIndex& index) : index_(index), qpos_(0) {}
 
 std::vector<size_t> BooleanSearch::intersect(const std::vector<size_t>& a, const std::vector<size_t>& b) {
     std::vector<size_t> result;
     size_t i = 0, j = 0;
-    
     while (i < a.size() && j < b.size()) {
-        if (a[i] == b[j]) {
-            result.push_back(a[i]);
-            ++i;
-            ++j;
-        } else if (a[i] < b[j]) {
-            ++i;
-        } else {
-            ++j;
-        }
+        if (a[i] == b[j]) { result.push_back(a[i]); ++i; ++j; }
+        else if (a[i] < b[j]) ++i;
+        else ++j;
     }
-    
     return result;
 }
 
 std::vector<size_t> BooleanSearch::unite(const std::vector<size_t>& a, const std::vector<size_t>& b) {
     std::vector<size_t> result;
     size_t i = 0, j = 0;
-    
     while (i < a.size() && j < b.size()) {
-        if (a[i] == b[j]) {
-            result.push_back(a[i]);
-            ++i;
-            ++j;
-        } else if (a[i] < b[j]) {
-            result.push_back(a[i]);
-            ++i;
-        } else {
-            result.push_back(b[j]);
-            ++j;
-        }
+        if (a[i] == b[j]) { result.push_back(a[i]); ++i; ++j; }
+        else if (a[i] < b[j]) { result.push_back(a[i]); ++i; }
+        else { result.push_back(b[j]); ++j; }
     }
-    
-    while (i < a.size()) {
-        result.push_back(a[i++]);
-    }
-    while (j < b.size()) {
-        result.push_back(b[j++]);
-    }
-    
+    while (i < a.size()) result.push_back(a[i++]);
+    while (j < b.size()) result.push_back(b[j++]);
     return result;
 }
 
 std::vector<size_t> BooleanSearch::subtract(const std::vector<size_t>& a, const std::vector<size_t>& b) {
     std::vector<size_t> result;
     size_t i = 0, j = 0;
-    
     while (i < a.size()) {
-        if (j >= b.size() || a[i] < b[j]) {
-            result.push_back(a[i]);
-            ++i;
-        } else if (a[i] == b[j]) {
-            ++i;
-            ++j;
-        } else {
-            ++j;
-        }
+        if (j >= b.size() || a[i] < b[j]) { result.push_back(a[i]); ++i; }
+        else if (a[i] == b[j]) { ++i; ++j; }
+        else ++j;
     }
-    
     return result;
 }
 
-std::vector<QueryTerm> BooleanSearch::parse_query(const std::string& query) {
-    std::vector<QueryTerm> terms;
-    auto tokens = tokenizer_.tokenize(query);
-    
-    QueryOperator next_op = QueryOperator::AND;
-    
-    for (size_t i = 0; i < tokens.size(); ++i) {
-        std::string token = tokens[i].text;
-        
-        if (token == "and" || token == "AND" || token == "и") {
-            next_op = QueryOperator::AND;
-            continue;
-        }
-        if (token == "or" || token == "OR" || token == "или") {
-            next_op = QueryOperator::OR;
-            continue;
-        }
-        if (token == "not" || token == "NOT" || token == "не") {
-            next_op = QueryOperator::NOT;
-            continue;
-        }
-        
-        std::string stemmed = stemmer_.stem(token);
-        terms.push_back(QueryTerm(stemmed, next_op));
-        next_op = QueryOperator::AND;
-    }
-    
-    return terms;
+std::vector<size_t> BooleanSearch::all_doc_ids() {
+    std::vector<size_t> result;
+    size_t n = index_.document_count();
+    result.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+        result.push_back(i);
+    return result;
 }
 
-std::vector<SearchResult> BooleanSearch::search(const std::string& query, size_t max_results) {
-    std::vector<SearchResult> results;
-    
-    std::vector<QueryTerm> query_terms = parse_query(query);
-    if (query_terms.empty()) {
-        return results;
+// ---- Lexer ----
+
+std::vector<BooleanSearch::QToken> BooleanSearch::lex(const std::string& q) {
+    std::vector<QToken> result;
+    size_t i = 0;
+    while (i < q.size()) {
+        unsigned char c = q[i];
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { ++i; continue; }
+
+        if (c == '(' ) { result.push_back({TokType::LPAREN, ""}); ++i; continue; }
+        if (c == ')' ) { result.push_back({TokType::RPAREN, ""}); ++i; continue; }
+        if (c == '!' && (i + 1 >= q.size() || q[i+1] != '=')) {
+            result.push_back({TokType::NOT_OP, ""}); ++i; continue;
+        }
+        if (c == '&' && i + 1 < q.size() && q[i+1] == '&') {
+            result.push_back({TokType::AND_OP, ""}); i += 2; continue;
+        }
+        if (c == '|' && i + 1 < q.size() && q[i+1] == '|') {
+            result.push_back({TokType::OR_OP, ""}); i += 2; continue;
+        }
+
+        std::string word;
+        while (i < q.size()) {
+            unsigned char ch = q[i];
+            if (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' ||
+                ch == '(' || ch == ')' || ch == '!') break;
+            if (ch == '&' && i + 1 < q.size() && q[i+1] == '&') break;
+            if (ch == '|' && i + 1 < q.size() && q[i+1] == '|') break;
+            word += static_cast<char>(ch);
+            ++i;
+        }
+        if (word.empty()) { ++i; continue; }
+
+        // ASCII-lowercase for operator detection
+        std::string lw;
+        for (size_t k = 0; k < word.size(); ++k) {
+            char ch = word[k];
+            if (ch >= 'A' && ch <= 'Z') ch += 32;
+            lw += ch;
+        }
+
+        if (lw == "and") { result.push_back({TokType::AND_OP, ""}); continue; }
+        if (lw == "or")  { result.push_back({TokType::OR_OP, ""});  continue; }
+        if (lw == "not") { result.push_back({TokType::NOT_OP, ""}); continue; }
+
+        // Cyrillic operator equivalents (UTF-8 byte comparison)
+        if (word == "\xd0\xb8" || word == "\xd0\x98") {
+            result.push_back({TokType::AND_OP, ""}); continue;
+        }
+        if (word == "\xd0\xb8\xd0\xbb\xd0\xb8" || word == "\xd0\x98\xd0\x9b\xd0\x98" ||
+            word == "\xd0\x98\xd0\xbb\xd0\xb8") {
+            result.push_back({TokType::OR_OP, ""}); continue;
+        }
+        if (word == "\xd0\xbd\xd0\xb5" || word == "\xd0\x9d\xd0\xb5" || word == "\xd0\x9d\xd0\x95") {
+            result.push_back({TokType::NOT_OP, ""}); continue;
+        }
+
+        auto tokens = tokenizer_.tokenize(word);
+        for (size_t t = 0; t < tokens.size(); ++t) {
+            std::string stemmed = stemmer_.stem(tokens[t].text);
+            result.push_back({TokType::WORD, stemmed});
+        }
     }
-    
-    std::vector<size_t> result_docs;
-    bool first = true;
-    
-    for (size_t i = 0; i < query_terms.size(); ++i) {
-        const QueryTerm& qt = query_terms[i];
-        const PostingList* pl = index_.get_posting_list(qt.term);
-        
-        std::vector<size_t> term_docs;
-        if (pl) {
-            for (size_t j = 0; j < pl->postings.size(); ++j) {
-                term_docs.push_back(pl->postings[j].doc_id);
-            }
-        }
-        
-        for (size_t k = 1; k < term_docs.size(); ++k) {
-            size_t key = term_docs[k];
-            size_t j = k;
-            while (j > 0 && term_docs[j - 1] > key) {
-                term_docs[j] = term_docs[j - 1];
-                --j;
-            }
-            term_docs[j] = key;
-        }
-        
-        if (first) {
-            if (qt.op == QueryOperator::NOT) {
-                continue;
-            }
-            result_docs = term_docs;
-            first = false;
+    result.push_back({TokType::END, ""});
+    return result;
+}
+
+// ---- Recursive descent parser ----
+
+std::vector<size_t> BooleanSearch::term_docs(const std::string& stemmed) {
+    const PostingList* pl = index_.get_posting_list(stemmed);
+    if (!pl) return {};
+    std::vector<size_t> docs;
+    docs.reserve(pl->postings.size());
+    for (size_t i = 0; i < pl->postings.size(); ++i)
+        docs.push_back(pl->postings[i].doc_id);
+    // Posting lists are already sorted by doc_id (insertion order = sequential)
+    for (size_t i = 1; i < docs.size(); ++i) {
+        size_t key = docs[i];
+        size_t j = i;
+        while (j > 0 && docs[j-1] > key) { docs[j] = docs[j-1]; --j; }
+        docs[j] = key;
+    }
+    return docs;
+}
+
+// or_expr = and_expr ( "||" and_expr )*
+std::vector<size_t> BooleanSearch::parse_or_expr() {
+    auto result = parse_and_expr();
+    while (qpos_ < qtokens_.size() && qtokens_[qpos_].type == TokType::OR_OP) {
+        ++qpos_;
+        result = unite(result, parse_and_expr());
+    }
+    return result;
+}
+
+// and_expr = unary ( ("&&" | implicit) unary )*
+std::vector<size_t> BooleanSearch::parse_and_expr() {
+    auto result = parse_unary();
+    while (qpos_ < qtokens_.size()) {
+        if (qtokens_[qpos_].type == TokType::AND_OP) {
+            ++qpos_;
+            result = intersect(result, parse_unary());
+        } else if (qtokens_[qpos_].type == TokType::WORD ||
+                   qtokens_[qpos_].type == TokType::NOT_OP ||
+                   qtokens_[qpos_].type == TokType::LPAREN) {
+            result = intersect(result, parse_unary());
         } else {
-            switch (qt.op) {
-                case QueryOperator::AND:
-                    result_docs = intersect(result_docs, term_docs);
-                    break;
-                case QueryOperator::OR:
-                    result_docs = unite(result_docs, term_docs);
-                    break;
-                case QueryOperator::NOT:
-                    result_docs = subtract(result_docs, term_docs);
-                    break;
-            }
+            break;
         }
     }
-    
-    std::vector<size_t> doc_scores;
-    doc_scores.reserve(result_docs.size());
-    
+    return result;
+}
+
+// unary = "!" unary | primary
+std::vector<size_t> BooleanSearch::parse_unary() {
+    if (qpos_ < qtokens_.size() && qtokens_[qpos_].type == TokType::NOT_OP) {
+        ++qpos_;
+        return subtract(all_doc_ids(), parse_unary());
+    }
+    return parse_primary();
+}
+
+// primary = "(" or_expr ")" | WORD
+std::vector<size_t> BooleanSearch::parse_primary() {
+    if (qpos_ < qtokens_.size() && qtokens_[qpos_].type == TokType::LPAREN) {
+        ++qpos_;
+        auto result = parse_or_expr();
+        if (qpos_ < qtokens_.size() && qtokens_[qpos_].type == TokType::RPAREN)
+            ++qpos_;
+        return result;
+    }
+    if (qpos_ < qtokens_.size() && qtokens_[qpos_].type == TokType::WORD) {
+        std::string term = qtokens_[qpos_].text;
+        ++qpos_;
+        return term_docs(term);
+    }
+    return {};
+}
+
+// ---- Merge sort for results ----
+
+static void merge_sr(std::vector<SearchResult>& a, std::vector<SearchResult>& t,
+                     size_t l, size_t m, size_t r) {
+    size_t i = l, j = m, k = l;
+    while (i < m && j < r) {
+        if (a[i].score >= a[j].score) t[k++] = a[i++];
+        else t[k++] = a[j++];
+    }
+    while (i < m) t[k++] = a[i++];
+    while (j < r) t[k++] = a[j++];
+    for (size_t x = l; x < r; ++x) a[x] = t[x];
+}
+
+static void msort_sr(std::vector<SearchResult>& a, std::vector<SearchResult>& t,
+                     size_t l, size_t r) {
+    if (r - l <= 1) return;
+    size_t m = l + (r - l) / 2;
+    msort_sr(a, t, l, m);
+    msort_sr(a, t, m, r);
+    merge_sr(a, t, l, m, r);
+}
+
+// ---- Search with TF-IDF ----
+
+std::vector<SearchResult> BooleanSearch::search(const std::string& query, size_t max_results) {
+    qtokens_ = lex(query);
+    qpos_ = 0;
+
+    if (qtokens_.empty() || qtokens_[0].type == TokType::END)
+        return {};
+
+    auto result_docs = parse_or_expr();
+
+    // Collect positive (non-negated) query terms for TF-IDF scoring
+    std::vector<std::string> pos_terms;
+    bool prev_not = false;
+    for (size_t i = 0; i < qtokens_.size(); ++i) {
+        if (qtokens_[i].type == TokType::NOT_OP) { prev_not = true; continue; }
+        if (qtokens_[i].type == TokType::WORD) {
+            if (!prev_not) pos_terms.push_back(qtokens_[i].text);
+            prev_not = false;
+        } else {
+            prev_not = false;
+        }
+    }
+    if (pos_terms.empty()) {
+        for (size_t i = 0; i < qtokens_.size(); ++i)
+            if (qtokens_[i].type == TokType::WORD)
+                pos_terms.push_back(qtokens_[i].text);
+    }
+
+    size_t N = index_.document_count();
+
+    // Precompute IDF for each positive term
+    std::vector<double> idfs;
+    idfs.reserve(pos_terms.size());
+    for (size_t i = 0; i < pos_terms.size(); ++i) {
+        const PostingList* pl = index_.get_posting_list(pos_terms[i]);
+        double df = pl ? static_cast<double>(pl->postings.size()) : 0.0;
+        idfs.push_back((df > 0 && N > 0) ? std::log10(static_cast<double>(N) / df) : 0.0);
+    }
+
+    // Score each result document
+    std::vector<SearchResult> results;
+    results.reserve(result_docs.size());
+
     for (size_t i = 0; i < result_docs.size(); ++i) {
         size_t doc_id = result_docs[i];
-        size_t score = 0;
-        
-        for (size_t j = 0; j < query_terms.size(); ++j) {
-            if (query_terms[j].op == QueryOperator::NOT) continue;
-            
-            const PostingList* pl = index_.get_posting_list(query_terms[j].term);
-            if (pl) {
-                for (size_t k = 0; k < pl->postings.size(); ++k) {
-                    if (pl->postings[k].doc_id == doc_id) {
-                        score += pl->postings[k].frequency;
-                        break;
-                    }
+        double score = 0.0;
+        for (size_t j = 0; j < pos_terms.size(); ++j) {
+            const PostingList* pl = index_.get_posting_list(pos_terms[j]);
+            if (!pl) continue;
+            for (size_t k = 0; k < pl->postings.size(); ++k) {
+                if (pl->postings[k].doc_id == doc_id) {
+                    score += static_cast<double>(pl->postings[k].frequency) * idfs[j];
+                    break;
                 }
             }
         }
-        doc_scores.push_back(score);
+        results.push_back(SearchResult(index_.get_doc_id(doc_id), score));
     }
-    
-    for (size_t i = 0; i < result_docs.size() && results.size() < max_results; ++i) {
-        std::string doc_str = index_.get_doc_id(result_docs[i]);
-        results.push_back(SearchResult(doc_str, doc_scores[i]));
+
+    // Merge sort by score descending
+    if (results.size() > 1) {
+        std::vector<SearchResult> tmp(results.size());
+        msort_sr(results, tmp, 0, results.size());
     }
-    
-    for (size_t i = 1; i < results.size(); ++i) {
-        SearchResult key = results[i];
-        size_t j = i;
-        while (j > 0 && results[j - 1].score < key.score) {
-            results[j] = results[j - 1];
-            --j;
-        }
-        results[j] = key;
-    }
-    
+
+    if (results.size() > max_results)
+        results.resize(max_results);
+
     return results;
 }
