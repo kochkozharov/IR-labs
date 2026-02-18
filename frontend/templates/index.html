@@ -193,15 +193,16 @@
         
         .chart-card h3 { font-size: 15px; color: #444; margin-bottom: 12px; }
         
-        .chart-card canvas {
-            min-height: 400px;
+        .chart-wrapper {
+            height: 400px;
+            position: relative;
         }
         
         .chart-card.full-width {
             grid-column: 1 / -1;
         }
-        .chart-card.full-width canvas {
-            min-height: 500px;
+        .chart-card.full-width .chart-wrapper {
+            height: 500px;
         }
         
         .loading { text-align: center; padding: 40px; color: #999; }
@@ -256,19 +257,19 @@
             <div class="charts-grid" id="chartsGrid">
                 <div class="chart-card">
                     <h3>Закон Ципфа: линейная шкала (топ 1000)</h3>
-                    <canvas id="chartLinear"></canvas>
+                    <div class="chart-wrapper"><canvas id="chartLinear"></canvas></div>
                 </div>
                 <div class="chart-card">
                     <h3>Закон Ципфа: логарифмическая шкала</h3>
-                    <canvas id="chartLogLog"></canvas>
+                    <div class="chart-wrapper"><canvas id="chartLogLog"></canvas></div>
                 </div>
                 <div class="chart-card">
                     <h3>Линейная регрессия (log-log)</h3>
-                    <canvas id="chartRegression"></canvas>
+                    <div class="chart-wrapper"><canvas id="chartRegression"></canvas></div>
                 </div>
                 <div class="chart-card full-width">
                     <h3>Топ-30 наиболее частых терминов</h3>
-                    <canvas id="chartTop30"></canvas>
+                    <div class="chart-wrapper"><canvas id="chartTop30"></canvas></div>
                 </div>
             </div>
         </div>
@@ -427,19 +428,19 @@
                     document.getElementById('chartsGrid').innerHTML = `
                         <div class="chart-card">
                             <h3>Закон Ципфа: линейная шкала (топ 1000)</h3>
-                            <canvas id="chartLinear"></canvas>
+                            <div class="chart-wrapper"><canvas id="chartLinear"></canvas></div>
                         </div>
                         <div class="chart-card">
                             <h3>Закон Ципфа: логарифмическая шкала</h3>
-                            <canvas id="chartLogLog"></canvas>
+                            <div class="chart-wrapper"><canvas id="chartLogLog"></canvas></div>
                         </div>
                         <div class="chart-card">
                             <h3>Линейная регрессия (log-log)</h3>
-                            <canvas id="chartRegression"></canvas>
+                            <div class="chart-wrapper"><canvas id="chartRegression"></canvas></div>
                         </div>
                         <div class="chart-card full-width">
                             <h3>Топ-30 наиболее частых терминов</h3>
-                            <canvas id="chartTop30"></canvas>
+                            <div class="chart-wrapper"><canvas id="chartTop30"></canvas></div>
                         </div>`;
                     renderZipfCharts(data);
                 })
