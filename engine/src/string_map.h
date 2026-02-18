@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstring>
 #include <string>
+#include <utility>
 
 template<typename V>
 class StringMap {
@@ -66,7 +67,7 @@ private:
         for (size_t i = 0; i < len; ++i) {
             h = h * 37 + static_cast<unsigned char>(str[i]);
         }
-        return (h % (capacity_ - 1)) + 1;
+        return ((h % (capacity_ - 1)) | 1);
     }
 
     bool keys_equal(const char* k1, size_t len1, const char* k2, size_t len2) const {
@@ -168,7 +169,13 @@ public:
         V* val = find(key);
         if (val) return *val;
         insert(key, V());
-        return *find(key);
+        val = find(key);
+        if (!val) {
+            rehash();
+            insert(key, V());
+            val = find(key);
+        }
+        return *val;
     }
 
     bool contains(const std::string& key) const {

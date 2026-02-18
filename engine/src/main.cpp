@@ -121,7 +121,7 @@ size_t file_size_bytes(const std::string& path) {
 
 void build_index(const std::string& input_file) {
     log_msg("INFO", "============================================================");
-    log_msg("INFO", "LINGUISTICS SEARCH ENGINE - Starting up");
+    log_msg("INFO", "SEARCH ENGINE - Starting up");
     log_msg("INFO", "============================================================");
     
     log_msg("INFO", "Input file:  " + input_file);
@@ -218,12 +218,12 @@ void run_cli() {
     BooleanSearch search(g_index);
     
     std::string test_queries[] = {
-        "язык",
-        "грамматика",
-        "фонетика",
-        "синтаксис AND морфология",
-        "лингвистика OR языкознание",
-        "слово NOT предложение"
+        "роман",
+        "поэзия",
+        "автор",
+        "проза AND рассказ",
+        "литература OR поэзия",
+        "роман NOT детектив"
     };
     
     log_msg("INFO", "Running test queries...");

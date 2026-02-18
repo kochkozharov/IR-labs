@@ -106,13 +106,14 @@ class WikiScraper:
         self.output_file = self.config['output']['file']
         
         self.visited: Set[str] = set()
+        self.visited_titles: Set[str] = set()  # дедупликация по каноническому заголовку (редиректы РФ→Россия)
         self.queue: deque = deque()
         self.document_count = 0
         self.extractor = ContentExtractor()
         
         self.excluded_patterns = self.settings.get('excluded_patterns', [])
-        self.min_text_length = self.settings.get('min_text_length', 1500)
         self.min_paragraphs = self.settings.get('min_paragraphs', 3)
+        self.min_word_count = self.settings.get('min_word_count', 1000)
     
     def normalize_url(self, url: str) -> str:
         parsed = urlparse(url)
@@ -147,9 +148,6 @@ class WikiScraper:
     async def process_article(self, html: str, url: str) -> Optional[Article]:
         text, paragraph_count = self.extractor.extract_text(html)
         
-        if len(text) < self.min_text_length:
-            return None
-        
         if paragraph_count < self.min_paragraphs:
             return None
         
@@ -158,6 +156,8 @@ class WikiScraper:
             return None
         
         word_count = len(text.split())
+        if word_count < self.min_word_count:
+            return None
         
         return Article(
             url=url,
@@ -201,7 +201,8 @@ class WikiScraper:
             
             article = await self.process_article(html, url)
             
-            if article:
+            if article and article.title not in self.visited_titles:
+                self.visited_titles.add(article.title)
                 await self.save_article(article)
                 self.document_count += 1
                 
@@ -210,7 +211,7 @@ class WikiScraper:
             
             if depth < self.settings['max_depth']:
                 links = self.extractor.extract_links(html, url)
-                for link in links[:50]:
+                for link in links[:150]:  # больше ссылок со страниц категорий
                     if self.is_valid_url(link):
                         link_normalized = self.normalize_url(link)
                         if link_normalized not in self.visited:
@@ -219,8 +220,8 @@ class WikiScraper:
     async def run(self):
         logger.info("Starting scraper...")
         logger.info(f"Target: {self.settings['max_documents']} documents")
-        logger.info(f"Min text length: {self.min_text_length} chars")
         logger.info(f"Min paragraphs: {self.min_paragraphs}")
+        logger.info(f"Min word count: {self.min_word_count}")
         
         async with aiofiles.open(self.output_file, 'w', encoding='utf-8') as f:
             pass

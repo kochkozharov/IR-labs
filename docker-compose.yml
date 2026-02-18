@@ -5,7 +5,7 @@ services:
     build:
       context: ./scraper
       dockerfile: Dockerfile
-    container_name: linguistics_scraper
+    container_name: search_scraper
     volumes:
       - ./scraper/config.yaml:/app/config.yaml
       - ./data:/app/data
@@ -16,7 +16,8 @@ services:
     build:
       context: ./engine
       dockerfile: Dockerfile
-    container_name: linguistics_engine
+    container_name: search_engine
+    mem_limit: 16g
     ports:
       - "9090:9090"
     volumes:
@@ -28,7 +29,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: linguistics_frontend
+    container_name: search_frontend
     ports:
       - "8080:8080"
     depends_on:

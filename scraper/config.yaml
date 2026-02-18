@@ -4,30 +4,42 @@ scraper:
     - "https://ru.wikipedia.org/wiki/Категория:Языки"
     - "https://ru.wikipedia.org/wiki/Категория:Языкознание"
     - "https://ru.wikipedia.org/wiki/Категория:Фонетика"
+    - "https://ru.wikipedia.org/wiki/Категория:Фонология"
     - "https://ru.wikipedia.org/wiki/Категория:Морфология_(лингвистика)"
     - "https://ru.wikipedia.org/wiki/Категория:Синтаксис"
     - "https://ru.wikipedia.org/wiki/Категория:Семантика"
     - "https://ru.wikipedia.org/wiki/Категория:Лексикология"
     - "https://ru.wikipedia.org/wiki/Категория:Грамматика"
     - "https://ru.wikipedia.org/wiki/Категория:Прикладная_лингвистика"
+    - "https://ru.wikipedia.org/wiki/Категория:Психолингвистика"
+    - "https://ru.wikipedia.org/wiki/Категория:Социолингвистика"
+    - "https://ru.wikipedia.org/wiki/Категория:Когнитивная_лингвистика"
+    - "https://ru.wikipedia.org/wiki/Категория:Лингвистическая_типология"
+    - "https://ru.wikipedia.org/wiki/Категория:Диалектология"
+    - "https://ru.wikipedia.org/wiki/Категория:Стилистика"
+    - "https://ru.wikipedia.org/wiki/Категория:Этимология"
+    - "https://ru.wikipedia.org/wiki/Категория:Орфография"
+    - "https://ru.wikipedia.org/wiki/Категория:Письменность"
+    - "https://ru.wikipedia.org/wiki/Категория:Переводоведение"
+    - "https://ru.wikipedia.org/wiki/Категория:Терминология"
+    - "https://ru.wikipedia.org/wiki/Категория:Компьютерная_лингвистика"
   
-  max_documents: 35000
-  max_depth: 4
+  max_documents: 30000
+  max_depth: 5
   concurrent_requests: 10
   request_delay_ms: 100
   timeout_seconds: 30
   user_agent: "LinguisticsSearchBot/1.0"
   
-  min_text_length: 1500
-  min_paragraphs: 3
+  min_paragraphs: 0
+  min_word_count: 1000 
   
   excluded_patterns:
     - "Special:"
     - "Служебная:"
     - "File:"
     - "Файл:"
-    - "Category:"
-    - "Категория:"
+    # Category/Категория НЕ исключаем — страницы категорий нужны для извлечения ссылок на статьи
     - "Template:"
     - "Шаблон:"
     - "Help:"

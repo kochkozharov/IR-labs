@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Linguistics Search Engine</title>
+    <title>Search Engine</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -208,7 +208,7 @@
 </head>
 <body>
     <div class="navbar">
-        <h1>Linguistics Search</h1>
+        <h1>Search Engine</h1>
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showPage('search')">Search</button>
             <button class="nav-tab" onclick="showPage('zipf')">Zipf Analysis</button>
@@ -301,7 +301,7 @@
             
             const t0 = performance.now();
             
-            fetch(`/api/search?q=${encodeURIComponent(currentQuery)}&page=${currentPage}&limit=100`)
+            fetch(`/api/search?q=${encodeURIComponent(currentQuery)}&page=${currentPage}&limit=35000`)
                 .then(r => r.json())
                 .then(data => {
                     const elapsed = ((performance.now() - t0) / 1000).toFixed(3);
