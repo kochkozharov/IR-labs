@@ -23,7 +23,7 @@ public:
 
 class InvertedIndex {
 private:
-    StringMap<PostingList> index_{262144};  // ~700k vocab для 30k docs — меньше rehash
+    StringMap<PostingList> index_{262144};
     std::vector<std::string> documents_;
     
 public:

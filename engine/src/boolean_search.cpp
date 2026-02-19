@@ -47,8 +47,6 @@ std::vector<size_t> BooleanSearch::all_doc_ids() {
     return result;
 }
 
-// ---- Lexer ----
-
 std::vector<BooleanSearch::QToken> BooleanSearch::lex(const std::string& q) {
     std::vector<QToken> result;
     size_t i = 0;
@@ -80,7 +78,6 @@ std::vector<BooleanSearch::QToken> BooleanSearch::lex(const std::string& q) {
         }
         if (word.empty()) { ++i; continue; }
 
-        // ASCII-lowercase for operator detection
         std::string lw;
         for (size_t k = 0; k < word.size(); ++k) {
             char ch = word[k];
@@ -92,7 +89,6 @@ std::vector<BooleanSearch::QToken> BooleanSearch::lex(const std::string& q) {
         if (lw == "or")  { result.push_back({TokType::OR_OP, ""});  continue; }
         if (lw == "not") { result.push_back({TokType::NOT_OP, ""}); continue; }
 
-        // Cyrillic operator equivalents (UTF-8 byte comparison)
         if (word == "\xd0\xb8" || word == "\xd0\x98") {
             result.push_back({TokType::AND_OP, ""}); continue;
         }
@@ -114,8 +110,6 @@ std::vector<BooleanSearch::QToken> BooleanSearch::lex(const std::string& q) {
     return result;
 }
 
-// ---- Recursive descent parser ----
-
 std::vector<size_t> BooleanSearch::term_docs(const std::string& stemmed) {
     const PostingList* pl = index_.get_posting_list(stemmed);
     if (!pl) return {};
@@ -123,7 +117,6 @@ std::vector<size_t> BooleanSearch::term_docs(const std::string& stemmed) {
     docs.reserve(pl->postings.size());
     for (size_t i = 0; i < pl->postings.size(); ++i)
         docs.push_back(pl->postings[i].doc_id);
-    // Posting lists are already sorted by doc_id (insertion order = sequential)
     for (size_t i = 1; i < docs.size(); ++i) {
         size_t key = docs[i];
         size_t j = i;
@@ -133,7 +126,6 @@ std::vector<size_t> BooleanSearch::term_docs(const std::string& stemmed) {
     return docs;
 }
 
-// or_expr = and_expr ( "||" and_expr )*
 std::vector<size_t> BooleanSearch::parse_or_expr() {
     auto result = parse_and_expr();
     while (qpos_ < qtokens_.size() && qtokens_[qpos_].type == TokType::OR_OP) {
@@ -143,7 +135,6 @@ std::vector<size_t> BooleanSearch::parse_or_expr() {
     return result;
 }
 
-// and_expr = unary ( ("&&" | implicit) unary )*
 std::vector<size_t> BooleanSearch::parse_and_expr() {
     auto result = parse_unary();
     while (qpos_ < qtokens_.size()) {
@@ -161,7 +152,6 @@ std::vector<size_t> BooleanSearch::parse_and_expr() {
     return result;
 }
 
-// unary = "!" unary | primary
 std::vector<size_t> BooleanSearch::parse_unary() {
     if (qpos_ < qtokens_.size() && qtokens_[qpos_].type == TokType::NOT_OP) {
         ++qpos_;
@@ -170,7 +160,6 @@ std::vector<size_t> BooleanSearch::parse_unary() {
     return parse_primary();
 }
 
-// primary = "(" or_expr ")" | WORD
 std::vector<size_t> BooleanSearch::parse_primary() {
     if (qpos_ < qtokens_.size() && qtokens_[qpos_].type == TokType::LPAREN) {
         ++qpos_;
@@ -186,8 +175,6 @@ std::vector<size_t> BooleanSearch::parse_primary() {
     }
     return {};
 }
-
-// ---- Merge sort for results ----
 
 static void merge_sr(std::vector<SearchResult>& a, std::vector<SearchResult>& t,
                      size_t l, size_t m, size_t r) {
@@ -210,8 +197,6 @@ static void msort_sr(std::vector<SearchResult>& a, std::vector<SearchResult>& t,
     merge_sr(a, t, l, m, r);
 }
 
-// ---- Search with TF-IDF ----
-
 std::vector<SearchResult> BooleanSearch::search(const std::string& query, size_t max_results) {
     qtokens_ = lex(query);
     qpos_ = 0;
@@ -221,7 +206,6 @@ std::vector<SearchResult> BooleanSearch::search(const std::string& query, size_t
 
     auto result_docs = parse_or_expr();
 
-    // Collect positive (non-negated) query terms for TF-IDF scoring
     std::vector<std::string> pos_terms;
     bool prev_not = false;
     for (size_t i = 0; i < qtokens_.size(); ++i) {
@@ -241,7 +225,6 @@ std::vector<SearchResult> BooleanSearch::search(const std::string& query, size_t
 
     size_t N = index_.document_count();
 
-    // Precompute IDF for each positive term
     std::vector<double> idfs;
     idfs.reserve(pos_terms.size());
     for (size_t i = 0; i < pos_terms.size(); ++i) {
@@ -250,7 +233,6 @@ std::vector<SearchResult> BooleanSearch::search(const std::string& query, size_t
         idfs.push_back((df > 0 && N > 0) ? std::log10(static_cast<double>(N) / df) : 0.0);
     }
 
-    // Score each result document
     std::vector<SearchResult> results;
     results.reserve(result_docs.size());
 
@@ -270,7 +252,6 @@ std::vector<SearchResult> BooleanSearch::search(const std::string& query, size_t
         results.push_back(SearchResult(index_.get_doc_id(doc_id), score));
     }
 
-    // Merge sort by score descending
     if (results.size() > 1) {
         std::vector<SearchResult> tmp(results.size());
         msort_sr(results, tmp, 0, results.size());

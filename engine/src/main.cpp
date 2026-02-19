@@ -122,8 +122,6 @@ size_t file_size_bytes(const std::string& path) {
     return f.tellg();
 }
 
-// ---- Binary dump helpers ----
-
 static void write_u64(std::ofstream& f, uint64_t v) {
     f.write(reinterpret_cast<const char*>(&v), 8);
 }
@@ -167,7 +165,6 @@ bool save_dump(const std::string& path) {
 
     f.write("IRDUMP01", 8);
 
-    // Section 1: Full documents
     write_u64(f, g_documents.size());
     for (size_t i = 0; i < g_documents.size(); ++i) {
         write_str(f, g_documents[i].url);
@@ -175,13 +172,11 @@ bool save_dump(const std::string& path) {
         write_str(f, g_documents[i].text);
     }
 
-    // Section 2: Index document names
     const auto& idx_docs = g_index.documents();
     write_u64(f, idx_docs.size());
     for (size_t i = 0; i < idx_docs.size(); ++i)
         write_str(f, idx_docs[i]);
 
-    // Section 3: Index terms + posting lists
     write_u64(f, g_index.vocabulary_size());
     g_index.for_each_term([&f](const std::string& term, const PostingList& pl) {
         write_str(f, term);
@@ -192,7 +187,6 @@ bool save_dump(const std::string& path) {
         }
     });
 
-    // Section 4: Zipf data
     write_u64(f, g_zipf.total_terms());
     write_u64(f, g_zipf.unique_terms());
     g_zipf.for_each_term_count([&f](const std::string& term, size_t count) {
@@ -200,7 +194,6 @@ bool save_dump(const std::string& path) {
         write_u64(f, count);
     });
 
-    // Section 5: Metadata
     write_u64(f, g_total_tokens);
     uint64_t time_ms = static_cast<uint64_t>(g_index_time * 1000);
     write_u64(f, time_ms);
@@ -234,7 +227,6 @@ bool load_dump(const std::string& path) {
         return false;
     }
 
-    // Section 1: Full documents
     uint64_t num_docs = read_u64(f);
     g_documents.clear();
     g_documents.reserve(num_docs);
@@ -247,16 +239,13 @@ bool load_dump(const std::string& path) {
     }
     log_msg("INFO", "Loaded " + std::to_string(g_documents.size()) + " documents");
 
-    // Build doc lookup
     g_doc_lookup.build(g_documents);
 
-    // Section 2: Index document names
     g_index.clear();
     uint64_t num_idx_docs = read_u64(f);
     for (uint64_t i = 0; i < num_idx_docs; ++i)
         g_index.add_document_name(read_str(f));
 
-    // Section 3: Index terms + posting lists
     uint64_t num_terms = read_u64(f);
     g_index.reserve_vocabulary(num_terms);
     for (uint64_t i = 0; i < num_terms; ++i) {
@@ -273,7 +262,6 @@ bool load_dump(const std::string& path) {
     }
     log_msg("INFO", "Loaded " + std::to_string(g_index.vocabulary_size()) + " terms");
 
-    // Section 4: Zipf data
     g_zipf.clear();
     uint64_t total_terms = read_u64(f);
     uint64_t unique_terms = read_u64(f);
@@ -285,7 +273,6 @@ bool load_dump(const std::string& path) {
         g_zipf.insert_term_count(term, count);
     }
 
-    // Section 5: Metadata
     g_total_tokens = read_u64(f);
     uint64_t time_ms = read_u64(f);
     g_index_time = time_ms / 1000.0;
