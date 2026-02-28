@@ -12,6 +12,18 @@ services:
     networks:
       - search_net
 
+  scraper-cyberleninka:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    container_name: search_scraper_cl
+    command: ["python", "scraper.py", "cyberleninka"]
+    volumes:
+      - ./scraper/config.yaml:/app/config.yaml
+      - ./data:/app/data
+    networks:
+      - search_net
+
   engine:
     build:
       context: ./engine

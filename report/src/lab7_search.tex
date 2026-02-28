@@ -259,8 +259,11 @@ Top 20 terms:
 Все компоненты упакованы в Docker-контейнеры и управляются через \texttt{docker-compose}:
 
 \begin{verbatim}
-# Сбор корпуса (однократно)
+# Сбор корпуса из Википедии (однократно)
 docker compose run --rm scraper
+
+# Сбор корпуса из КиберЛенинки (однократно)
+docker compose run --rm scraper-cyberleninka
 
 # Запуск движка и веб-интерфейса (HTTP-режим)
 docker compose up engine frontend
@@ -269,7 +272,7 @@ docker compose up engine frontend
 docker compose run --rm engine /app/engine
 \end{verbatim}
 
-Веб-интерфейс доступен по адресу \texttt{http://localhost:8080}.
+Движок автоматически загружает оба файла (\texttt{corpus.ndjson} и \texttt{corpus2.ndjson}) в единый индекс. Веб-интерфейс доступен по адресу \texttt{http://localhost:8080}.
 
 \subsection{Журнал выполнения задания}
 

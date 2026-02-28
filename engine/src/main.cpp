@@ -289,12 +289,14 @@ bool load_dump(const std::string& path) {
     return true;
 }
 
-void build_index(const std::string& input_file) {
+void build_index(const std::string& input_file, const std::string& input_file2 = "") {
     log_msg("INFO", "============================================================");
     log_msg("INFO", "SEARCH ENGINE - Starting up");
     log_msg("INFO", "============================================================");
     
     log_msg("INFO", "Input file:  " + input_file);
+    if (!input_file2.empty())
+        log_msg("INFO", "Input file2: " + input_file2);
     
     if (!file_exists(input_file)) {
         log_msg("ERROR", "Input file does not exist: " + input_file);
@@ -310,6 +312,13 @@ void build_index(const std::string& input_file) {
     
     g_documents = NdjsonReader::load(input_file);
     
+    if (!input_file2.empty() && file_exists(input_file2)) {
+        auto docs2 = NdjsonReader::load(input_file2);
+        log_msg("INFO", "Loaded " + std::to_string(docs2.size()) + " documents from " + input_file2);
+        for (size_t i = 0; i < docs2.size(); ++i)
+            g_documents.push_back(std::move(docs2[i]));
+    }
+    
     auto load_end = std::chrono::high_resolution_clock::now();
     auto load_ms = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start).count();
     
@@ -318,7 +327,7 @@ void build_index(const std::string& input_file) {
         return;
     }
     
-    log_msg("INFO", "Loaded " + std::to_string(g_documents.size()) + " documents in " + std::to_string(load_ms / 1000.0) + "s");
+    log_msg("INFO", "Loaded " + std::to_string(g_documents.size()) + " documents total in " + std::to_string(load_ms / 1000.0) + "s");
     log_msg("INFO", "First document: " + g_documents[0].title + " (" + g_documents[0].url + ")");
     log_msg("INFO", "First doc text length: " + std::to_string(g_documents[0].text.size()) + " chars");
     
@@ -633,6 +642,7 @@ void run_server(int port) {
 
 int main(int argc, char* argv[]) {
     std::string input_file = "/app/data/corpus.ndjson";
+    std::string input_file2 = "/app/data/corpus2.ndjson";
     std::string dump_path = "/app/data/index.dump";
     
     bool serve_mode = false;
@@ -649,6 +659,8 @@ int main(int argc, char* argv[]) {
             port = std::stoi(argv[++i]);
         } else if (arg == "--input" && i + 1 < argc) {
             input_file = argv[++i];
+        } else if (arg == "--input2" && i + 1 < argc) {
+            input_file2 = argv[++i];
         } else if (arg == "--dump" && i + 1 < argc) {
             dump_path = argv[++i];
         }
@@ -656,6 +668,7 @@ int main(int argc, char* argv[]) {
     
     log_msg("INFO", "Mode: " + std::string(serve_mode ? "HTTP server" : "CLI"));
     log_msg("INFO", "Input: " + input_file);
+    log_msg("INFO", "Input2: " + input_file2);
     log_msg("INFO", "Dump:  " + dump_path);
     
     bool loaded = false;
@@ -666,7 +679,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (!loaded) {
-        build_index(input_file);
+        build_index(input_file, input_file2);
         if (!g_documents.empty()) {
             save_dump(dump_path);
         }

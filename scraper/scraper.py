@@ -103,7 +103,8 @@ class WikiScraper:
             self.config = yaml.safe_load(f)
         
         self.settings = self.config['scraper']
-        self.output_file = self.config['output']['file']
+        output = self.config['output']
+        self.output_file = output.get('wiki', output.get('file', '/app/data/corpus.ndjson'))
         
         self.visited: Set[str] = set()
         self.visited_titles: Set[str] = set()  # дедупликация по каноническому заголовку (редиректы РФ→Россия)
@@ -245,8 +246,173 @@ class WikiScraper:
         logger.info(f"Scraping completed. Total documents: {self.document_count}")
 
 
+class CyberLeninkaScraper:
+
+    def __init__(self, config_path: str):
+        with open(config_path, 'r', encoding='utf-8') as f:
+            self.config = yaml.safe_load(f)
+
+        self.settings = self.config['cyberleninka']
+        output = self.config['output']
+        self.output_file = output.get('cyberleninka', '/app/data/corpus2.ndjson')
+
+        self.visited: Set[str] = set()
+        self.document_count = 0
+        self.min_word_count = self.settings.get('min_word_count', 1000)
+
+    async def fetch_page(self, session: aiohttp.ClientSession, url: str) -> Optional[str]:
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=self.settings['timeout_seconds'])) as response:
+                if response.status == 200:
+                    return await response.text()
+        except Exception as e:
+            logger.debug(f"Failed to fetch {url}: {e}")
+        return None
+
+    def extract_article_links(self, html: str) -> List[str]:
+        soup = BeautifulSoup(html, 'lxml')
+        links = []
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+            if href.startswith('/article/n/'):
+                links.append('https://cyberleninka.ru' + href)
+        return links
+
+    def extract_article(self, html: str, url: str) -> Optional[Article]:
+        soup = BeautifulSoup(html, 'lxml')
+
+        title_tag = soup.find('h1')
+        if not title_tag:
+            return None
+        raw_title = title_tag.get_text(strip=True)
+        title = re.sub(r'\s*Текст научной статьи по специальности.*$', '', raw_title)
+
+        text_header = None
+        for h2 in soup.find_all(['h2', 'h3']):
+            if 'Текст научной работы' in h2.get_text():
+                text_header = h2
+                break
+
+        if not text_header:
+            return None
+
+        text_parts = []
+        for sibling in text_header.find_next_siblings():
+            tag_name = sibling.name
+            if tag_name in ('h1', 'h2', 'h3'):
+                heading_text = sibling.get_text(strip=True)
+                if heading_text and 'Список литературы' in heading_text:
+                    break
+                if heading_text and heading_text.startswith('Похожие тем'):
+                    break
+                continue
+            text = sibling.get_text(separator=' ', strip=True)
+            text = re.sub(r'\s+', ' ', text)
+            text = re.sub(r'\[\d+\]', '', text)
+            if len(text) > 30:
+                text_parts.append(text)
+
+        full_text = '\n'.join(text_parts)
+        word_count = len(full_text.split())
+
+        if word_count < self.min_word_count:
+            return None
+
+        paragraphs = [p for p in text_parts if len(p) > 50]
+        return Article(
+            url=url,
+            title=title,
+            text=full_text,
+            html='',
+            word_count=word_count,
+            paragraph_count=len(paragraphs)
+        )
+
+    async def save_article(self, article: Article):
+        data = {
+            'url': article.url,
+            'title': article.title,
+            'text': article.text,
+            'word_count': article.word_count,
+            'paragraph_count': article.paragraph_count
+        }
+        async with aiofiles.open(self.output_file, 'a', encoding='utf-8') as f:
+            await f.write(json.dumps(data, ensure_ascii=False) + '\n')
+
+    async def run(self):
+        logger.info("Starting CyberLeninka scraper...")
+        logger.info(f"Target: {self.settings['max_documents']} articles")
+        logger.info(f"Min word count: {self.min_word_count}")
+
+        async with aiofiles.open(self.output_file, 'w', encoding='utf-8') as f:
+            pass
+
+        connector = aiohttp.TCPConnector(limit=self.settings['concurrent_requests'])
+        headers = {'User-Agent': self.settings['user_agent']}
+        delay = self.settings['request_delay_ms'] / 1000
+        semaphore = asyncio.Semaphore(self.settings['concurrent_requests'])
+
+        async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
+            for base_url in self.settings['category_urls']:
+                if self.document_count >= self.settings['max_documents']:
+                    break
+
+                for page in range(1, self.settings['max_pages'] + 1):
+                    if self.document_count >= self.settings['max_documents']:
+                        break
+
+                    page_url = base_url if page == 1 else f"{base_url}/{page}"
+                    async with semaphore:
+                        await asyncio.sleep(delay)
+                        page_html = await self.fetch_page(session, page_url)
+
+                    if not page_html:
+                        logger.warning(f"Failed to load listing page {page}, stopping")
+                        break
+
+                    article_links = self.extract_article_links(page_html)
+                    if not article_links:
+                        logger.info(f"No more articles on page {page}, stopping")
+                        break
+
+                    tasks = []
+                    for link in article_links:
+                        if link in self.visited:
+                            continue
+                        self.visited.add(link)
+                        tasks.append(self.process_one(session, semaphore, link, delay))
+
+                    await asyncio.gather(*tasks)
+
+                    if self.document_count % 100 == 0 or page % 10 == 0:
+                        logger.info(f"Progress: {self.document_count}/{self.settings['max_documents']} docs, page {page}")
+
+        logger.info(f"CyberLeninka scraping completed. Total: {self.document_count}")
+
+    async def process_one(self, session, semaphore, url, delay):
+        if self.document_count >= self.settings['max_documents']:
+            return
+        async with semaphore:
+            await asyncio.sleep(delay)
+            html = await self.fetch_page(session, url)
+        if not html:
+            return
+        article = self.extract_article(html, url)
+        if article:
+            await self.save_article(article)
+            self.document_count += 1
+
+
 async def main():
-    scraper = WikiScraper('/app/config.yaml')
+    import sys
+    mode = sys.argv[1] if len(sys.argv) > 1 else 'wiki'
+    config_path = '/app/config.yaml'
+
+    if mode == 'cyberleninka':
+        scraper = CyberLeninkaScraper(config_path)
+    else:
+        scraper = WikiScraper(config_path)
+
     await scraper.run()
 
 

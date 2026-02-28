@@ -39,7 +39,6 @@ scraper:
     - "Служебная:"
     - "File:"
     - "Файл:"
-    # Category/Категория НЕ исключаем — страницы категорий нужны для извлечения ссылок на статьи
     - "Template:"
     - "Шаблон:"
     - "Help:"
@@ -53,5 +52,17 @@ scraper:
     - "Portal:"
     - "Портал:"
 
+cyberleninka:
+  category_urls:
+    - "https://cyberleninka.ru/article/c/languages-and-literature"
+  max_documents: 5000
+  max_pages: 500
+  concurrent_requests: 5
+  request_delay_ms: 300
+  timeout_seconds: 30
+  user_agent: "LinguisticsSearchBot/1.0"
+  min_word_count: 1000
+
 output:
-  file: "/app/data/corpus.ndjson"
+  wiki: "/app/data/corpus.ndjson"
+  cyberleninka: "/app/data/corpus2.ndjson"

@@ -3,8 +3,11 @@
 ## Запуск
 
 ```bash
-# Сбор корпуса (однократно)
+# Сбор корпуса из Википедии (однократно)
 docker compose run --rm scraper
+
+# Сбор корпуса из КиберЛенинки (однократно)
+docker compose run --rm scraper-cyberleninka
 
 # Запуск движка и веб-интерфейса (HTTP-режим)
 docker compose up engine frontend
