@@ -137,28 +137,6 @@ API-эндпоинты движка:
     \item \texttt{GET /api/document?url=...} --- получение документа
 \end{itemize}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.9\textwidth]{images/example1.png}
-\caption{Веб-интерфейс: результаты поиска}
-\label{fig:ui_search}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\textwidth]{images/example3.png}
-    \caption{Веб-интерфейс: результаты поиска}
-    \label{fig:ui_search}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.9\textwidth]{images/stats.png}
-\caption{Веб-интерфейс: статистика}
-\label{fig:ui_stats}
-\end{figure}
-
-
 \subsection{Утилита командной строки (CLI)}
 
 Движок поддерживает интерактивный режим CLI. Для запуска в режиме командной строки (без HTTP-сервера) используется \texttt{docker compose run} с переопределением команды:
@@ -229,30 +207,26 @@ Top 20 terms:
 
 \subsection{Демонстрация веб-интерфейса}
 
-% TODO: Вставить скриншоты веб-интерфейса
-\begin{center}
-\textit{[Место для скриншота веб-интерфейса --- поиск]}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/example1.png}
+\caption{Веб-интерфейс: результаты поиска}
+\label{fig:ui_search}
+\end{figure}
 
-% Раскомментировать после добавления изображения:
-% \begin{figure}[H]
-% \centering
-% \includegraphics[width=\textwidth]{images/ui_search.png}
-% \caption{Веб-интерфейс: результаты поиска}
-% \label{fig:ui_search}
-% \end{figure}
-\end{center}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/example3.png}
+    \caption{Веб-интерфейс: результаты поиска}
+    \label{fig:ui_search}
+\end{figure}
 
-\begin{center}
-\textit{[Место для скриншота веб-интерфейса --- статистика]}
-
-% Раскомментировать после добавления изображения:
-% \begin{figure}[H]
-% \centering
-% \includegraphics[width=\textwidth]{images/ui_stats.png}
-% \caption{Веб-интерфейс: статистика индекса}
-% \label{fig:ui_stats}
-% \end{figure}
-\end{center}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/stats.png}
+\caption{Веб-интерфейс: статистика}
+\label{fig:ui_stats}
+\end{figure}
 
 \subsection{Контейнеризация и запуск}
 
