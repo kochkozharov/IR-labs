@@ -261,12 +261,19 @@ class CyberLeninkaScraper:
         self.min_word_count = self.settings.get('min_word_count', 1000)
 
     async def fetch_page(self, session: aiohttp.ClientSession, url: str) -> Optional[str]:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+            'Referer': 'https://cyberleninka.ru/',
+        }
         try:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=self.settings['timeout_seconds'])) as response:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=self.settings['timeout_seconds'])) as response:
                 if response.status == 200:
                     return await response.text()
+                logger.warning(f"Fetch {url}: HTTP {response.status}")
         except Exception as e:
-            logger.debug(f"Failed to fetch {url}: {e}")
+            logger.warning(f"Failed to fetch {url}: {e}")
         return None
 
     def extract_article_links(self, html: str) -> List[str]:
@@ -347,12 +354,10 @@ class CyberLeninkaScraper:
         async with aiofiles.open(self.output_file, 'w', encoding='utf-8') as f:
             pass
 
-        connector = aiohttp.TCPConnector(limit=self.settings['concurrent_requests'])
-        headers = {'User-Agent': self.settings['user_agent']}
+        connector = aiohttp.TCPConnector(limit=2)
         delay = self.settings['request_delay_ms'] / 1000
-        semaphore = asyncio.Semaphore(self.settings['concurrent_requests'])
 
-        async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
+        async with aiohttp.ClientSession(connector=connector) as session:
             for base_url in self.settings['category_urls']:
                 if self.document_count >= self.settings['max_documents']:
                     break
@@ -362,12 +367,18 @@ class CyberLeninkaScraper:
                         break
 
                     page_url = base_url if page == 1 else f"{base_url}/{page}"
-                    async with semaphore:
-                        await asyncio.sleep(delay)
+                    logger.info(f"Загрузка страницы каталога {page}: {page_url}")
+                    page_html = None
+                    for attempt in range(3):
+                        await asyncio.sleep(delay * (attempt + 1))
                         page_html = await self.fetch_page(session, page_url)
+                        if page_html:
+                            break
+                        logger.warning(f"Retry {attempt + 1}/3 for page {page}")
+                        await asyncio.sleep(2)
 
                     if not page_html:
-                        logger.warning(f"Failed to load listing page {page}, stopping")
+                        logger.warning(f"Failed to load listing page {page} after retries, stopping")
                         break
 
                     article_links = self.extract_article_links(page_html)
@@ -375,32 +386,34 @@ class CyberLeninkaScraper:
                         logger.info(f"No more articles on page {page}, stopping")
                         break
 
-                    tasks = []
                     for link in article_links:
+                        if self.document_count >= self.settings['max_documents']:
+                            break
                         if link in self.visited:
                             continue
                         self.visited.add(link)
-                        tasks.append(self.process_one(session, semaphore, link, delay))
-
-                    await asyncio.gather(*tasks)
+                        await asyncio.sleep(delay)
+                        await self.process_one(session, link)
 
                     if self.document_count % 100 == 0 or page % 10 == 0:
                         logger.info(f"Progress: {self.document_count}/{self.settings['max_documents']} docs, page {page}")
 
+                    await asyncio.sleep(1)
+
         logger.info(f"CyberLeninka scraping completed. Total: {self.document_count}")
 
-    async def process_one(self, session, semaphore, url, delay):
+    async def process_one(self, session, url):
         if self.document_count >= self.settings['max_documents']:
             return
-        async with semaphore:
-            await asyncio.sleep(delay)
-            html = await self.fetch_page(session, url)
+        html = await self.fetch_page(session, url)
         if not html:
             return
         article = self.extract_article(html, url)
         if article:
             await self.save_article(article)
             self.document_count += 1
+            title_short = article.title[:60] + '...' if len(article.title) > 60 else article.title
+            logger.info(f"[{self.document_count}] {title_short} ({article.word_count} слов)")
 
 
 async def main():

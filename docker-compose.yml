@@ -18,11 +18,10 @@ services:
       dockerfile: Dockerfile
     container_name: search_scraper_cl
     command: ["python", "scraper.py", "cyberleninka"]
+    network_mode: host
     volumes:
       - ./scraper/config.yaml:/app/config.yaml
       - ./data:/app/data
-    networks:
-      - search_net
 
   engine:
     build:

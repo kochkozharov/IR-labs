@@ -57,8 +57,8 @@ cyberleninka:
     - "https://cyberleninka.ru/article/c/languages-and-literature"
   max_documents: 5000
   max_pages: 500
-  concurrent_requests: 5
-  request_delay_ms: 300
+  concurrent_requests: 1
+  request_delay_ms: 2500
   timeout_seconds: 30
   user_agent: "LinguisticsSearchBot/1.0"
   min_word_count: 1000
